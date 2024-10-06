@@ -21,3 +21,5 @@ Spotibot is a slack bot that manages a shared playlist through slack!
 1. top song
 1. random song
 1. Cleanup
+1. Playlist based on the channel
+1. Saw something about spotify AI, wonder if there's an API. Could be fun to have a playlist generate based on the conversation in slack
