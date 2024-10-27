@@ -3,15 +3,16 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-# mount the repo as a volume before running this target
-# -v ./:/app
 FROM base AS dev
-RUN go install github.com/air-verse/air@v1.61.1
+RUN go install github.com/air-verse/air@v1.61.1 && \
+  go install github.com/go-delve/delve/cmd/dlv@v1.23.1
+# delve
+EXPOSE 40000
 ENTRYPOINT ["air", "-c", ".air.toml"]
 
 FROM base AS build
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main ./cmd/main.go
+RUN make go-build-prod
 
 FROM scratch AS production
 WORKDIR /app

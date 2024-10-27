@@ -34,7 +34,7 @@ func (cc *ClientConfig) validate() error {
 	return nil
 }
 
-func NewSocketmodeHandler(config ClientConfig) (*socketmode.SocketmodeHandler, error) {
+func New(config ClientConfig) (*socketmode.Client, error) {
 	err := config.validate()
 	if err != nil {
 		return nil, err
@@ -46,7 +46,5 @@ func NewSocketmodeHandler(config ClientConfig) (*socketmode.SocketmodeHandler, e
 	)
 
 	client := socketmode.New(api)
-	socketmodeHandler := socketmode.NewSocketmodeHandler(client)
-	socketmodeHandler.Handle(socketmode.EventTypeConnected, func(_ *socketmode.Event, _ *socketmode.Client) { config.Logger.Info("Connected to slack") })
-	return socketmodeHandler, nil
+	return client, nil
 }
