@@ -18,7 +18,8 @@ DEV_TAG="dev"
 docker-build-dev:
 	docker build --target dev -t "$(APP_NAME):dev" .
 
+DELV_PORT=2345
 docker-run-dev: docker-build-dev
-	docker run --env-file .env -p 40000:40000 -v ./:/app $(APP_NAME):dev
+	docker run --env-file .env -p $(DELV_PORT):$(DELV_PORT) -v ./:/app $(APP_NAME):dev
 
 run-dev: docker-build-dev docker-run-dev

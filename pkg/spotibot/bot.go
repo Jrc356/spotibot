@@ -1,10 +1,9 @@
 package spotibot
 
 import (
-	"errors"
+	"context"
 	"fmt"
 
-	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
 	"github.com/zmb3/spotify/v2"
@@ -17,27 +16,41 @@ type spotibot struct {
 	Logger        *zap.SugaredLogger
 }
 
-func New(slackClient *socketmode.Client, spotifyClient *spotify.Client, logger *zap.SugaredLogger) (spotibot, error) {
-	if slackClient == nil {
-		return spotibot{}, errors.New("slackSocketmodeHandler is nil")
+func New(
+	slackConfig SlackConfig,
+	spotifyConfig SpotifyConfig,
+	logger *zap.SugaredLogger,
+	ctx context.Context,
+) (*spotibot, error) {
+	if err := slackConfig.validate(); err != nil {
+		return &spotibot{}, fmt.Errorf("invalid slack config: %e", err)
 	}
-	if spotifyClient == nil {
-		return spotibot{}, errors.New("spotifyClient is nil")
+	if err := spotifyConfig.validate(); err != nil {
+		return &spotibot{}, fmt.Errorf("invalid spotify config: %e", err)
 	}
 
-	return spotibot{
+	slackClient, err := newSlackClient(slackConfig)
+	if err != nil {
+		return &spotibot{}, err
+	}
+	spotifyClient, err := newSpotifyClient(spotifyConfig, ctx)
+	if err != nil {
+		return &spotibot{}, err
+	}
+
+	return &spotibot{
 		SlackClient:   slackClient,
 		SpotifyClient: spotifyClient,
 		Logger:        logger,
 	}, nil
 }
 
-func (bot *spotibot) Run() error {
-	go bot.run()
-	return bot.SlackClient.Run()
+func Run(bot *spotibot, ctx context.Context) error {
+	go bot.runHandlers(ctx)
+	return bot.SlackClient.RunContext(ctx)
 }
 
-func (bot *spotibot) run() {
+func (bot *spotibot) runHandlers(ctx context.Context) {
 	for evt := range bot.SlackClient.Events {
 		switch evt.Type {
 		case socketmode.EventTypeConnecting:
@@ -50,7 +63,7 @@ func (bot *spotibot) run() {
 			continue
 		case socketmode.EventTypeEventsAPI:
 			event := evt.Data.(slackevents.EventsAPIEvent)
-			err := bot.handleEvent(event)
+			err := bot.handleEvent(event, ctx)
 			if err != nil {
 				bot.Logger.Error(err)
 				continue
@@ -62,32 +75,44 @@ func (bot *spotibot) run() {
 	}
 }
 
-func (bot *spotibot) handleEvent(event slackevents.EventsAPIEvent) error {
+func (bot *spotibot) handleEvent(event slackevents.EventsAPIEvent, ctx context.Context) error {
 	switch ev := event.InnerEvent.Data.(type) {
 	case *slackevents.MessageEvent:
-		bot.Logger.Infof("heard message event: %+v", ev)
-		err := bot.handleMessageEvent(ev)
+		bot.Logger.Infof("heard message event: %+v", ev.Text)
+		err := bot.handleMessageEvent(ev, ctx)
 		if err != nil {
 			return err
 		}
 	default:
-		bot.Logger.Warnf("Unexpected inner event: %+v", ev)
+		return fmt.Errorf("unexpected inner event: %+v", ev)
 	}
 	return nil
 }
 
-func (bot *spotibot) handleMessageEvent(msgEvent *slackevents.MessageEvent) error {
+func (bot *spotibot) handleMessageEvent(msgEvent *slackevents.MessageEvent, ctx context.Context) error {
+	if msgEvent.SubType != "" {
+		bot.Logger.Infof("skipping subtype: %s", msgEvent.SubType)
+	}
+
+	if !containsSpotifyLink(msgEvent.Text) {
+		bot.Logger.Infof("skipping. text does not contain spotify link")
+		return nil
+	}
+
 	if msgEvent.Channel == "" || msgEvent.EventTimeStamp == "" {
 		return fmt.Errorf("invalid message event: %+v", msgEvent)
 	}
-	ref := slack.NewRefToMessage(msgEvent.Channel, msgEvent.EventTimeStamp)
-	if ref.Timestamp == "" {
-		return errors.New("could not get message ref")
-	}
-	println(ref.Comment)
-	err := bot.SlackClient.AddReaction("+1", ref)
+
+	err := noticeMessage(&bot.SlackClient.Client, msgEvent)
 	if err != nil {
 		return err
 	}
+	track, err := trackFromText(bot.SpotifyClient, msgEvent.Text, ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Println(track)
+	// bot.updatePlaylist(track)
+
 	return nil
 }

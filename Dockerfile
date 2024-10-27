@@ -7,7 +7,7 @@ FROM base AS dev
 RUN go install github.com/air-verse/air@v1.61.1 && \
   go install github.com/go-delve/delve/cmd/dlv@v1.23.1
 # delve
-EXPOSE 40000
+EXPOSE 2345
 ENTRYPOINT ["air", "-c", ".air.toml"]
 
 FROM base AS build

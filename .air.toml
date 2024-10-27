@@ -8,7 +8,7 @@ tmp_dir = "tmp"
 [build]
 cmd = "make OUT=tmp go-build-dev"
 bin = "tmp/spotibot"
-full_bin = "dlv exec ./tmp/spotibot --accept-multiclient --log --headless --continue --listen=:40000 --api-version=2 -- "
+full_bin = "dlv exec ./tmp/spotibot --accept-multiclient --log --headless --continue --listen=:2345 --api-version=2 -- "
 include_ext = ["go", "tpl", "tmpl", "html"]
 exclude_regex = ["_test\\.go"]
 exclude_unchanged = true
