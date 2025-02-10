@@ -3,7 +3,7 @@ module github.com/Jrc356/spotibot
 go 1.23.2
 
 require (
-	github.com/slack-go/slack v0.15.0
+	github.com/slack-go/slack v0.16.0
 	github.com/zmb3/spotify/v2 v2.4.3
 	go.uber.org/zap v1.27.0
 	golang.org/x/oauth2 v0.24.0
